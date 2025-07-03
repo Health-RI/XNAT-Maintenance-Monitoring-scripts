@@ -31,7 +31,7 @@ Run users per project report for specific project:
 
 Run disk usage report:
 ```bash
-./run.sh disk_usages --xnat_url https://xnat.health-ri.nl --report_path ./output.txt --study_overview ./studyoverview.csv
+./run.sh disk_usages --xnat_url https://xnat.health-ri.nl --report_path ./input_disk_usage_report.txt --study_overview ./studyoverview.csv
 ```
 
 The `run.sh` script will automatically:
@@ -75,7 +75,7 @@ This script returns a CSV file "./{today}_XNAT_users_per_project.csv", with the 
 
 Run in the terminal with:
 ```bash
-python scripts/disk_usages.py --xnat_url https://xnat.health-ri.nl --report_path ./output.txt --study_overview ./studyoverview.csv
+python scripts/disk_usages.py --xnat_url https://xnat.health-ri.nl --report_path ./input_disk_usage_report.txt --study_overview ./studyoverview.csv
 ```
 to query the whole XNAT.
 
