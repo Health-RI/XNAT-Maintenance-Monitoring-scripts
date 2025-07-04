@@ -34,7 +34,7 @@ def main(xnat_url, username, password, selected_project=None):
                     "pi_institution": pi.institution,
                 }
                 dictionary_list.append(user_dict)
-        print(f"Disconnected.")
+        print("Disconnected.")
     
     df = pd.DataFrame(dictionary_list)
     df.to_csv(csv_path, index=False)
