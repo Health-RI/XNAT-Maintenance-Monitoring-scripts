@@ -31,11 +31,11 @@ def main(xnat_url, username, password, report_path, study_overview_path):
             data_usage = project_usage[0]
             project_path = Path(project_usage[1])
             project_id = project_path.name
-            if not project_id in substudies:
+            if project_id not in substudies:
                 continue
             try:
                 xnat_project = session.projects[project_id]
-            except:
+            except KeyError:
                 continue
             print(f"Project: {xnat_project.name}")
             pi = xnat_project.pi
@@ -53,7 +53,7 @@ def main(xnat_url, username, password, report_path, study_overview_path):
                 "pi_institution": pi.institution,
             }
             dictionary_list.append(user_dict)
-        print(f"Disconnected.")
+        print("Disconnected.")
     
     df = pd.DataFrame(dictionary_list)
     df.to_csv(csv_path, index=False)
