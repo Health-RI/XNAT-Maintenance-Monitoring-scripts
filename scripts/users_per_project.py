@@ -7,7 +7,7 @@ from datetime import datetime
 def main(xnat_url, username, password, selected_project=None):
     dictionary_list = []
     today = datetime.today().strftime('%Y-%m-%d')
-    csv_path = f"./{today}_XNAT_users_per_project.csv"
+    csv_path = f"./output/{today}_XNAT_users_per_project.csv"
     
     with xnat.connect(xnat_url, user=username, password=password) as session:
         print(f"Connected to {xnat_url}")

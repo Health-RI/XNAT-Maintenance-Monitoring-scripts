@@ -34,9 +34,30 @@ Run disk usage report:
 ./run.sh disk_usages --xnat_url https://xnat.health-ri.nl --report_path ./input_disk_usage_report.txt --study_overview ./studyoverview.csv
 ```
 
+Run disk usage report with multiple input files (batch mode):
+```bash
+./run.sh disk_usages --xnat_url https://xnat.health-ri.nl --report_path ./report1.txt ./report2.txt ./report3.txt --study_overview ./studyoverview.csv
+```
+
+Run disk usage report with custom output filename:
+```bash
+./run.sh disk_usages --xnat_url https://xnat.health-ri.nl --report_path ./input_report.txt --output_file ./custom_output.csv
+```
+
+Use custom data directory and additional volume mounts:
+```bash
+XNAT_VOLUME_MOUNTS='/input:/data/input,/output:/data/output' ./run.sh disk_usages --xnat_url https://xnat.health-ri.nl --report_path /data/input/report.txt
+```
+
+Use specific Docker image version:
+```bash
+XNAT_IMAGE_TAG=v1.2.3 ./run.sh users_per_project --xnat_url https://xnat.health-ri.nl
+```
+
 The `run.sh` script will automatically:
-- Build the Docker image
+- Pull the Docker image from GitHub Container Registry (or build locally if pull fails)
 - Mount your current directory into the container
+- Support additional volume mounts via environment variables
 - Execute the specified script with your arguments
 - Output files will be created in your current directory
 
@@ -79,10 +100,21 @@ python scripts/disk_usages.py --xnat_url https://xnat.health-ri.nl --report_path
 ```
 to query the whole XNAT.
 
-`report_path` is the `du` output from the server.
-`study_overview` is a CSV file with a column 'main_study' and 'substudy' to link main studies to their substudies.
+Process multiple disk usage reports (batch mode):
+```bash
+python scripts/disk_usages.py --xnat_url https://xnat.health-ri.nl --report_path ./report1.txt ./report2.txt ./report3.txt --study_overview ./studyoverview.csv
+```
 
-This script returns a CSV file "./{today}_XNAT_disk_usage.csv", with the columns:
+Use custom output filename:
+```bash
+python scripts/disk_usages.py --xnat_url https://xnat.health-ri.nl --report_path ./input_report.txt --output_file ./custom_output.csv
+```
+
+`report_path` accepts one or more `du` output files from the server. Each file generates a separate output.
+`study_overview` is a CSV file with a column 'main_study' and 'substudy' to link main studies to their substudies.
+`output_file` allows custom output filename (only used when processing a single file).
+
+This script returns CSV file(s) with format "./{today}_{input_basename}_XNAT_Disk_usage.csv", with the columns:
 * project_id
 * main_study
 * project_path
