@@ -5,7 +5,7 @@ import argparse
 import getpass
 from datetime import datetime
 
-def main(xnat_url, username, password, report_paths, study_overview_path, output_file=None):
+def main(xnat_url, username, password, report_paths, study_overview_path, output_folder=None):
     # Read in the study overview if provided:
     if study_overview_path:
         study_overview = pd.read_csv(study_overview_path, sep=';')
@@ -71,10 +71,10 @@ def main(xnat_url, username, password, report_paths, study_overview_path, output
                 dictionary_list.append(user_dict)
             
             # Generate output filename for this report
-            if output_file and len(report_paths) == 1:
-                csv_path = output_file
+            input_basename = Path(report_path).stem
+            if output_folder:
+                csv_path = Path(output_folder) / f"{today}_{input_basename}_XNAT_Disk_usage.csv"
             else:
-                input_basename = Path(report_path).stem
                 csv_path = f"./output/{today}_{input_basename}_XNAT_Disk_usage.csv"
             
             # Write output file for this report
@@ -107,12 +107,12 @@ if __name__ == "__main__":
                         help='Path(s) to disk usage report file(s). Each file will generate a separate output.')
     parser.add_argument('--study_overview', type=str, required=False,
                         help='Path to the project/study overview CSV file (optional)')
-    parser.add_argument('--output_file', type=str, required=False,
-                        help='Custom output filename (only used when processing single file)')
+    parser.add_argument('--output_folder', type=str, required=False,
+                        help='Custom output folder')
     args = parser.parse_args()
     
     # Prompt for username and password
     username = input("Enter your XNAT username: ")
     password = getpass.getpass("Enter your XNAT password: ")
 
-    main(args.xnat_url, username, password, args.report_path, args.study_overview, args.output_file)
+    main(args.xnat_url, username, password, args.report_path, args.study_overview, args.output_folder)
