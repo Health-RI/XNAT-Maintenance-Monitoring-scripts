@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY scripts/ ./scripts/
+COPY src/xnat_maintenance_monitoring_scripts/ ./scripts/
 COPY entrypoint.py ./
 
 # Change ownership of the app directory to the non-root user
