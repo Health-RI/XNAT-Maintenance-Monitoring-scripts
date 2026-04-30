@@ -1,4 +1,4 @@
-FROM python:3.11.13-alpine3.22
+FROM python:3.14.4-alpine3.22
 
 # Create a non-root user
 RUN addgroup -g 1001 -S appgroup && \
