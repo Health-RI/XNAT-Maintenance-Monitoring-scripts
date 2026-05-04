@@ -36,7 +36,7 @@ Repository = "https://github.com/Health-RI/XNAT-Maintenance-Monitoring-scripts.g
 Issues = "https://github.com/Health-RI/XNAT-Maintenance-Monitoring-scripts/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["scripts"]
+packages = ["src/xnat_maintenance_monitoring_scripts"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -53,16 +53,15 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 [tool.hatch.envs.test.scripts]
 test = "pytest {args:tests}"
 test-cov = "coverage run -m pytest {args:tests}"
-cov-report = ["- coverage combine", "coverage report", "coverage xml"]
+cov-report = ["- coverage combine", "- coverage report", "- coverage xml"]
 cov = ["test-cov", "cov-report"]
 
 [tool.coverage.run]
-source_pkgs = ["scripts", "tests"]
+source_pkgs = ["xnat_maintenance_monitoring_scripts"]
 branch = true
 parallel = true
 
 [tool.coverage.paths]
-sempyro = ["scripts"]
 tests = ["tests"]
 
 [tool.coverage.report]

@@ -48,12 +48,12 @@ You can also run the scripts directly with Python if you have the dependencies i
 
 Run in the terminal with:
 ```bash
-python scripts/users_per_project.py --xnat_url https://xnat.health-ri.nl
+python src/xnat_maintenance_monitoring_scripts/users_per_project.py --xnat_url https://xnat.health-ri.nl
 ```
 to query the whole XNAT.
 Run the following to query only 'sandbox'
 ```bash
-python scripts/users_per_project.py --xnat_url https://xnat.health-ri.nl --project sandbox
+python src/xnat_maintenance_monitoring_scripts/users_per_project.py --xnat_url https://xnat.health-ri.nl --project sandbox
 ```
 
 You need to have 'Owner' or 'Site admin' priviliges to run this script on a project.
@@ -75,7 +75,7 @@ This script returns a CSV file "./{today}_XNAT_users_per_project.csv", with the 
 
 Run in the terminal with:
 ```bash
-python scripts/disk_usages.py --xnat_url https://xnat.health-ri.nl --report_path ./input_disk_usage_report.txt --study_overview ./studyoverview.csv
+python src/xnat_maintenance_monitoring_scripts/disk_usages.py --xnat_url https://xnat.health-ri.nl --report_path ./input_disk_usage_report.txt --study_overview ./studyoverview.csv
 ```
 to query the whole XNAT.
 
