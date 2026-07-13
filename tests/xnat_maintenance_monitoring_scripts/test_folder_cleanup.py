@@ -113,6 +113,37 @@ def test_handle_directory_nested_recursive_cleanup(tmp_path):
     assert not subdir.exists()
     assert not directory.exists()
 
+
+def test_handle_file_removal_exceeds_retention(tmp_path):
+    file_path = tmp_path / "old.txt"
+    file_path.write_text("old")
+    _age(file_path, RETENTION_DAYS + 1)
+
+    folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
+
+    assert not file_path.exists()
+
+
+def test_handle_file_removal_within_retention(tmp_path):
+    file_path = tmp_path / "fresh.txt"
+    file_path.write_text("fresh")
+    _age(file_path, RETENTION_DAYS - 10)
+
+    folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
+
+    assert file_path.exists()
+
+
+def test_handle_file_removal_at_retention_boundary(tmp_path):
+    file_path = tmp_path / "boundary.txt"
+    file_path.write_text("boundary")
+    _age(file_path, RETENTION_DAYS)
+
+    folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
+
+    assert file_path.exists()
+
+
 def _age(path, days_old):
     timestamp = (datetime.now() - timedelta(days=days_old)).timestamp()
     os.utime(path, (timestamp, timestamp))
