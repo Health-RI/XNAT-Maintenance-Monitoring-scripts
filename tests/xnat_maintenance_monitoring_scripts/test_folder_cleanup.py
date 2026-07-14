@@ -1,4 +1,5 @@
 import os
+import stat
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
@@ -142,6 +143,67 @@ def test_handle_file_removal_at_retention_boundary(tmp_path):
     folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
 
     assert file_path.exists()
+
+
+def test_handle_file_removal_read_only(tmp_path):
+    file_path = tmp_path / "readonly.txt"
+    file_path.write_text("content")
+    _age(file_path, RETENTION_DAYS + 1)
+    os.chmod(file_path, stat.S_IREAD)
+
+    folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
+
+    assert not file_path.exists()
+
+
+@patch("os.remove")
+def test_handle_file_removal_unrecoverable_error(mock_remove, tmp_path, capsys):
+    mock_remove.side_effect = OSError("Permission denied by ACL")
+    file_path = tmp_path / "locked.txt"
+    file_path.write_text("content")
+    _age(file_path, RETENTION_DAYS + 1)
+
+    folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
+
+    assert file_path.exists()
+    assert "Could not remove file" in capsys.readouterr().out
+
+
+def test_handle_directory_removal_not_read_only(tmp_path):
+    directory = tmp_path / "plain"
+    directory.mkdir()
+    (directory / "file.txt").write_text("content")
+
+    folder_cleanup.handle_directory_removal(str(directory))
+
+    assert not directory.exists()
+
+
+def test_handle_directory_removal_read_only(tmp_path):
+    directory = tmp_path / "readonly"
+    directory.mkdir()
+    read_only_file = directory / "file.txt"
+    read_only_file.write_text("content")
+    os.chmod(read_only_file, stat.S_IREAD)
+
+    folder_cleanup.handle_directory_removal(str(directory))
+
+    assert not directory.exists()
+
+
+@patch("shutil.rmtree")
+def test_handle_directory_removal_unrecoverable_error(mock_rmtree, tmp_path, capsys):
+    mock_rmtree.side_effect = OSError("Permission denied by ACL")
+    directory = tmp_path / "locked"
+    directory.mkdir()
+
+    folder_cleanup.handle_directory_removal(str(directory))
+
+    mock_rmtree.assert_called_once_with(
+        str(directory), ignore_errors=False, onerror=folder_cleanup.remove_readonly
+    )
+    assert directory.exists()
+    assert "Could not remove directory or file" in capsys.readouterr().out
 
 
 def _age(path, days_old):
