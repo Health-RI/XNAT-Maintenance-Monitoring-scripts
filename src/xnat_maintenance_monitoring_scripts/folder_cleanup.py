@@ -16,6 +16,9 @@ def cleanup(dir_path, retention_days):
         entry_path = os.path.join(dir_path, entry)
         handle_path(entry_path, retention_days)
 
+    if not os.listdir(dir_path):
+        handle_directory_removal(dir_path)
+
     print(f"Cleaned up {dir_path}")
 
 
