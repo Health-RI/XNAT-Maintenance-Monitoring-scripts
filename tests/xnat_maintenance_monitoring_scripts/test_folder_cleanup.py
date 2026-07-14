@@ -1,7 +1,10 @@
+import errno
 import os
 import stat
 from datetime import datetime, timedelta
 from unittest.mock import patch
+
+import pytest
 
 from xnat_maintenance_monitoring_scripts import folder_cleanup
 
@@ -204,6 +207,17 @@ def test_handle_directory_removal_unrecoverable_error(mock_rmtree, tmp_path, cap
     )
     assert directory.exists()
     assert "Could not remove directory or file" in capsys.readouterr().out
+
+
+def test_remove_readonly_eacces_retries(tmp_path):
+    file_path = tmp_path / "readonly.txt"
+    file_path.write_text("content")
+    os.chmod(file_path, stat.S_IREAD)
+    exc = (OSError, OSError(errno.EACCES, "Access denied"), None)
+
+    folder_cleanup.remove_readonly(os.remove, str(file_path), exc)
+
+    assert not file_path.exists()
 
 
 def _age(path, days_old):
