@@ -1,5 +1,5 @@
 import argparse
-import errno, os, stat
+import errno, os, stat, sys
 import shutil
 from datetime import datetime
 
@@ -42,9 +42,19 @@ def handle_directory(directory, retention_days):
 def handle_file_removal(file_path, retention_days):
     last_modified = datetime.fromtimestamp(os.path.getmtime(file_path))
     last_modified_days = (datetime.now() - last_modified).days
-    if last_modified_days > retention_days:
+    if last_modified_days <= retention_days:
+        return
+
+    try:
         os.remove(file_path)
-        print(f"Removed file {file_path} - last modified {last_modified_days} days")
+    except OSError:
+        try:
+            remove_readonly(os.remove, file_path, sys.exc_info())
+        except OSError as e:
+            print(f"Could not remove file {file_path}: {e}")
+            return
+
+    print(f"Removed file {file_path} - last modified {last_modified_days} days")
 
 def handle_directory_removal(path):
     try:
@@ -56,7 +66,7 @@ def handle_directory_removal(path):
 def remove_readonly(func, path, exc):
     # onerror callback for shutil.rmtree: whenever a delete fails partway through the tree, instead of aborting the whole rmtree.
     excvalue = exc[1]
-    if func in (os.rmdir, os.remove) and excvalue.errno == errno.EACCES:
+    if func in (os.rmdir, os.remove, os.unlink) and excvalue.errno == errno.EACCES:
       # Windows marks some OneDrive files read-only, which makes rmdir/remove raise
       # "access denied" (EACCES). Clearing the attribute and retrying fixes that case.
       os.chmod(path, stat.S_IRWXU| stat.S_IRWXG| stat.S_IRWXO) # 0777
