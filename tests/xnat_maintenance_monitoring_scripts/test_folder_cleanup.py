@@ -4,8 +4,6 @@ import stat
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-import pytest
-
 from xnat_maintenance_monitoring_scripts import folder_cleanup
 
 RETENTION_DAYS = 90
@@ -23,7 +21,6 @@ def test_handle_path_dir(mock_isdir, mock_isfile, mock_handle_directory, mock_ha
     mock_handle_directory.assert_called_once_with("some/dir", 90)
     mock_handle_file_removal.assert_not_called()
 
-
 @patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_file_removal")
 @patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_directory")
 @patch("os.path.isfile")
@@ -36,7 +33,6 @@ def test_handle_path_file(mock_isdir, mock_isfile, mock_handle_directory, mock_h
 
     mock_handle_file_removal.assert_called_once_with("some/file.txt", 90)
     mock_handle_directory.assert_not_called()
-
 
 @patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_file_removal")
 @patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_directory")
@@ -59,7 +55,6 @@ def test_handle_directory_empty(tmp_path):
 
     assert not empty_dir.exists()
 
-
 def test_handle_directory_not_empty_all_exceed_retention(tmp_path):
     directory = tmp_path / "all_old"
     directory.mkdir()
@@ -72,7 +67,6 @@ def test_handle_directory_not_empty_all_exceed_retention(tmp_path):
     assert not old_file.exists()
     assert not directory.exists()
 
-
 def test_handle_directory_not_empty_all_within_retention(tmp_path):
     directory = tmp_path / "all_fresh"
     directory.mkdir()
@@ -84,7 +78,6 @@ def test_handle_directory_not_empty_all_within_retention(tmp_path):
 
     assert fresh_file.exists()
     assert directory.exists()
-
 
 def test_handle_directory_mixed_contents(tmp_path):
     directory = tmp_path / "mixed"
@@ -102,7 +95,6 @@ def test_handle_directory_mixed_contents(tmp_path):
     assert fresh_file.exists()
     assert directory.exists()
 
-
 def test_handle_directory_nested_recursive_cleanup(tmp_path):
     directory = tmp_path / "dir"
     subdir = directory / "subdir"
@@ -117,7 +109,6 @@ def test_handle_directory_nested_recursive_cleanup(tmp_path):
     assert not subdir.exists()
     assert not directory.exists()
 
-
 def test_handle_file_removal_exceeds_retention(tmp_path):
     file_path = tmp_path / "old.txt"
     file_path.write_text("old")
@@ -126,7 +117,6 @@ def test_handle_file_removal_exceeds_retention(tmp_path):
     folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
 
     assert not file_path.exists()
-
 
 def test_handle_file_removal_within_retention(tmp_path):
     file_path = tmp_path / "fresh.txt"
@@ -137,7 +127,6 @@ def test_handle_file_removal_within_retention(tmp_path):
 
     assert file_path.exists()
 
-
 def test_handle_file_removal_at_retention_boundary(tmp_path):
     file_path = tmp_path / "boundary.txt"
     file_path.write_text("boundary")
@@ -146,7 +135,6 @@ def test_handle_file_removal_at_retention_boundary(tmp_path):
     folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
 
     assert file_path.exists()
-
 
 def test_handle_file_removal_read_only(tmp_path):
     file_path = tmp_path / "readonly.txt"
@@ -157,7 +145,6 @@ def test_handle_file_removal_read_only(tmp_path):
     folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
 
     assert not file_path.exists()
-
 
 @patch("os.remove")
 def test_handle_file_removal_unrecoverable_error(mock_remove, tmp_path, capsys):
@@ -171,7 +158,6 @@ def test_handle_file_removal_unrecoverable_error(mock_remove, tmp_path, capsys):
     assert file_path.exists()
     assert "Could not remove file" in capsys.readouterr().out
 
-
 def test_handle_directory_removal_not_read_only(tmp_path):
     directory = tmp_path / "plain"
     directory.mkdir()
@@ -180,7 +166,6 @@ def test_handle_directory_removal_not_read_only(tmp_path):
     folder_cleanup.handle_directory_removal(str(directory))
 
     assert not directory.exists()
-
 
 def test_handle_directory_removal_read_only(tmp_path):
     directory = tmp_path / "readonly"
@@ -192,7 +177,6 @@ def test_handle_directory_removal_read_only(tmp_path):
     folder_cleanup.handle_directory_removal(str(directory))
 
     assert not directory.exists()
-
 
 @patch("shutil.rmtree")
 def test_handle_directory_removal_unrecoverable_error(mock_rmtree, tmp_path, capsys):
@@ -208,7 +192,6 @@ def test_handle_directory_removal_unrecoverable_error(mock_rmtree, tmp_path, cap
     assert directory.exists()
     assert "Could not remove directory or file" in capsys.readouterr().out
 
-
 def test_remove_readonly_eacces_retries(tmp_path):
     file_path = tmp_path / "readonly.txt"
     file_path.write_text("content")
@@ -218,7 +201,6 @@ def test_remove_readonly_eacces_retries(tmp_path):
     folder_cleanup.remove_readonly(os.remove, str(file_path), exc)
 
     assert not file_path.exists()
-
 
 def _age(path, days_old):
     timestamp = (datetime.now() - timedelta(days=days_old)).timestamp()
