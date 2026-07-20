@@ -12,15 +12,15 @@ import xnat
 # XNAT instance shows "name" is correct instead.
 PREARCHIVE_FOLDER_FIELD = "folder_name"
 
-
 def main(xnat_url, username, password, project, retention_days, prearchive_path):
     with xnat.connect(xnat_url, user=username, password=password) as session:
         print(f"Connected to {xnat_url}")
-        cleanup_prearchive(session, project, retention_days, prearchive_path, t)
+        cleanup_prearchive(session, project, retention_days, prearchive_path)
         print("Disconnected.")
 
-def cleanup_prearchive(xnat_session, project, retention_days, prearchive_path, now=None):
-    project_filter = resolve_project_filter(project)
+def cleanup_prearchive(xnat_session, project, retention_days, prearchive_path):
+    now = datetime.now()
+    project_filter = "unassigned"
     sessions = list_prearchive_sessions(xnat_session, project_filter)
     expired_sessions = filter_expired_sessions(sessions, retention_days, now)
 
@@ -30,7 +30,7 @@ def cleanup_prearchive(xnat_session, project, retention_days, prearchive_path, n
     errors = 0
 
     for prearchive_session in expired_sessions:
-        result = delete_prearchive_session(prearchive_session, prearchive_path)
+        result = delete_prearchive_session(prearchive_session)
         if result["error"] is not None:
             errors += 1
         else:
@@ -45,11 +45,6 @@ def cleanup_prearchive(xnat_session, project, retention_days, prearchive_path, n
 
     return {"checked": checked, "deleted": deleted, "disk_warnings": disk_warnings, "errors": errors}
 
-def resolve_project_filter(project):
-    if project.lower() == "all":
-        return None
-    return project
-
 def list_prearchive_sessions(xnat_session, project_filter):
     return xnat_session.prearchive.sessions(project=project_filter)
 
@@ -57,32 +52,24 @@ def is_expired(timestamp, retention_days, current_timestamp):
     age_days = (current_timestamp - timestamp).days
     return age_days > retention_days
 
-def filter_expired_sessions(sessions, retention_days, now=None):
+def filter_expired_sessions(sessions, retention_days, now):
     return [session for session in sessions if is_expired(session.timestamp, retention_days, now)]
 
 def build_prearchive_disk_path(prearchive_path, project, timestamp_raw, folder_name):
     return Path(prearchive_path) / project / timestamp_raw / folder_name
 
-def delete_prearchive_session(prearchive_session, prearchive_root):
-    project = prearchive_session.project
-    timestamp_raw = prearchive_session.data["timestamp"]
-    folder_name = getattr(prearchive_session, PREARCHIVE_FOLDER_FIELD)
-    label = prearchive_session.label
-
+def delete_prearchive_session(prearchive_session):
     try:
         prearchive_session.delete(asynchronous=False)
+        print(f"Session deleted: {prearchive_session.session_id}")
+        return None
     except Exception as e:
-        print(f"ERROR: Failed to delete prearchive session {label} ({project}): {e}")
-        return {"deleted": False, "disk_verified": None, "error": str(e)}
+        print(f"Session deletion failed: {prearchive_session.session_id} - error: {e}")
+        return e
 
-    disk_path = build_prearchive_disk_path(prearchive_root, project, timestamp_raw, folder_name)
-    verified = not disk_path.exists()
-    if verified:
-        print(f"Deleted {label} ({project}) via API and confirmed removed from disk at {disk_path}")
-    else:
-        print(f"WARNING: {label} ({project}) deleted via API but still present on disk at {disk_path}")
+def is_disk_path_deleted(disk_path):
+    return not disk_path.exists()
 
-    return {"deleted": True, "disk_verified": verified, "error": None}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Remove old XNAT prearchive uploads and verify removal from disk")
@@ -95,7 +82,7 @@ if __name__ == "__main__":
     parser.add_argument("--retention_days", type=int, default=90,
                         help="Retention period in days; prearchive sessions with an upload timestamp older than "
                              "this will be removed (default: 90)")
-    parser.add_argument("--prearchive_path", type=str, required=True,
+    parser.add_argument("--project_root", type=str, required=True,
                         help="Absolute path to the XNAT prearchive path directory on disk (e.g., "
                              "/data/xnat/prearchive), used to verify that deleted sessions are actually gone "
                              "from disk. Must be reachable from wherever this script runs.")
@@ -105,4 +92,4 @@ if __name__ == "__main__":
     username = input("Enter your XNAT username: ")
     password = getpass.getpass("Enter your XNAT password: ")
 
-    main(args.xnat_url, username, password, args.project, args.retention_days, args.prearchive_root)
+    main(args.xnat_url, username, password, args.project, args.retention_days, args.project_root)
