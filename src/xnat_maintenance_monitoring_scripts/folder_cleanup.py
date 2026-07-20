@@ -5,11 +5,15 @@ from datetime import datetime
 
 def cleanup(dir_path, retention_days):
     if not os.path.exists(dir_path):
-        print(f"Path does not exist: {dir_path}")
+        print(f"Stopping cleanup - path does not exist: {dir_path}")
         return
 
     if not os.path.isdir(dir_path):
-        print(f"Path is not a directory: {dir_path}")
+        print(f"Stopping cleanup - path is not a directory: {dir_path}")
+        return
+
+    if os.path.islink(dir_path):
+        print(f"Stopping cleanup - path is a symbolic link, : {dir_path}")
         return
 
     for entry in os.listdir(dir_path):
@@ -19,10 +23,14 @@ def cleanup(dir_path, retention_days):
     if not os.listdir(dir_path):
         handle_directory_removal(dir_path)
 
-    print(f"Cleaned up {dir_path}")
+    print(f"Successfully cleaned up directory {dir_path} - with retention days: {retention_days}")
 
 
 def handle_path(path, retention_days):
+    if os.path.islink(path):
+        print(f"Ignoring file - file is a symbolic link: {path}")
+        return
+
     if os.path.isdir(path):
         handle_directory(path, retention_days)
     elif os.path.isfile(path):
@@ -46,20 +54,27 @@ def handle_file_removal(file_path, retention_days):
     last_modified = datetime.fromtimestamp(os.path.getmtime(file_path))
     last_modified_days = (datetime.now() - last_modified).days
     if last_modified_days <= retention_days:
+        print(f"File unchanged {file_path} - last modified {last_modified_days} days")
         return
 
     try:
         os.remove(file_path)
+        print(f"Removed file {file_path} - last modified {last_modified_days} days")
+
     except OSError:
         try:
             remove_readonly(os.remove, file_path, sys.exc_info())
+            print(f"Removed readonly file {file_path} - last modified {last_modified_days} days")
+
         except OSError as e:
             print(f"Could not remove file {file_path}: {e}")
             return
 
-    print(f"Removed file {file_path} - last modified {last_modified_days} days")
-
 def handle_directory_removal(path):
+    if not os.path.isdir(path):
+        print(f"Path is not a directory: {path}")
+        return
+
     try:
         shutil.rmtree(path, ignore_errors=False, onerror=remove_readonly)
         print(f"Removed directory {path}")
@@ -78,7 +93,7 @@ def remove_readonly(func, path, exc):
       # Not a read-only issue (e.g. an ACL delete-deny) - re-raise the original exception.
       # Works because rmtree calls onerror() from inside its own except block, so the
       # exception context is still live for a bare `raise` to pick up.
-      raise
+        raise
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Clean up old files in target folder (e.g: in XNAT cache, temp and deleted folders)')
