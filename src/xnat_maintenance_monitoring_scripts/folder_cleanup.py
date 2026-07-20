@@ -28,7 +28,7 @@ def cleanup(dir_path, retention_days):
 
 def handle_path(path, retention_days):
     if os.path.islink(path):
-        print(f"Ignoring file - file is a symbolic link: {path}")
+        print(f"Ignoring path - object is a symbolic link: {path}")
         return
 
     if os.path.isdir(path):
