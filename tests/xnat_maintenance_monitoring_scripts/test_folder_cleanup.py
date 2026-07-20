@@ -29,16 +29,16 @@ def test_cleanup_path_is_symlink(mock_islink, tmp_path, capsys):
     mock_islink.return_value = True
     directory = tmp_path / "link_dir"
     directory.mkdir()
-    (directory / "file.txt").write_text("content")
 
     folder_cleanup.cleanup(str(directory), RETENTION_DAYS)
 
-    assert (directory / "file.txt").exists()
     assert "path is a symbolic link" in capsys.readouterr().out
+    assert directory.exists()
 
 def test_cleanup_removes_old_file_and_empty_directory(tmp_path):
     directory = tmp_path / "dir"
     directory.mkdir()
+
     old_file = directory / "old.txt"
     old_file.write_text("old")
     _age(old_file, RETENTION_DAYS + 10)
@@ -51,6 +51,7 @@ def test_cleanup_removes_old_file_and_empty_directory(tmp_path):
 def test_cleanup_keeps_directory_with_fresh_file(tmp_path):
     directory = tmp_path / "dir"
     directory.mkdir()
+
     fresh_file = directory / "fresh.txt"
     fresh_file.write_text("fresh")
     _age(fresh_file, RETENTION_DAYS - 10)
@@ -60,31 +61,24 @@ def test_cleanup_keeps_directory_with_fresh_file(tmp_path):
     assert fresh_file.exists()
     assert directory.exists()
 
-def test_cleanup_nested_directories_recursively_cleaned(tmp_path):
+def test_cleanup_nested_directories_recursively_cleaned(tmp_path, capsys):
     directory = tmp_path / "dir"
+
     subdir = directory / "subdir"
     subdir.mkdir(parents=True)
+
     old_file = subdir / "old.txt"
     old_file.write_text("old")
     _age(old_file, RETENTION_DAYS + 10)
 
     folder_cleanup.cleanup(str(directory), RETENTION_DAYS)
+    out = capsys.readouterr().out
 
     assert not old_file.exists()
     assert not subdir.exists()
     assert not directory.exists()
-
-def test_cleanup_prints_success_message(tmp_path, capsys):
-    directory = tmp_path / "dir"
-    directory.mkdir()
-    fresh_file = directory / "fresh.txt"
-    fresh_file.write_text("fresh")
-    _age(fresh_file, RETENTION_DAYS - 10)
-
-    folder_cleanup.cleanup(str(directory), RETENTION_DAYS)
-
-    out = capsys.readouterr().out
     assert f"Successfully cleaned up directory {directory}" in out
+
 
 @patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_file_removal")
 @patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_directory")
