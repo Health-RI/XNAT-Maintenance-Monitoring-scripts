@@ -119,6 +119,22 @@ def test_handle_path_neither_file_nor_dir(mock_isdir, mock_isfile, mock_handle_d
     mock_handle_directory.assert_not_called()
     mock_handle_file_removal.assert_not_called()
 
+@patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_file_removal")
+@patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_directory")
+@patch("os.path.isfile")
+@patch("os.path.isdir")
+@patch("os.path.islink")
+def test_handle_path_symlink_is_ignored(mock_islink, mock_isdir, mock_isfile, mock_handle_directory, mock_handle_file_removal, capsys):
+    mock_islink.return_value = True
+    mock_isdir.return_value = True
+    mock_isfile.return_value = False
+
+    folder_cleanup.handle_path("some/symlink", 90)
+
+    mock_handle_directory.assert_not_called()
+    mock_handle_file_removal.assert_not_called()
+    assert "symbolic link" in capsys.readouterr().out
+
 def test_handle_directory_empty(tmp_path):
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
