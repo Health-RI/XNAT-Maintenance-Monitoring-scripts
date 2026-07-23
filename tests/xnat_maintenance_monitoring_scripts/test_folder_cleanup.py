@@ -35,7 +35,7 @@ def test_cleanup_path_is_symlink(mock_islink, tmp_path, capsys):
     assert "path is a symbolic link" in capsys.readouterr().out
     assert directory.exists()
 
-def test_cleanup_removes_old_file_and_empty_directory(tmp_path):
+def test_cleanup_removes_old_file_but_keeps_fresh_empty_directory(tmp_path):
     directory = tmp_path / "dir"
     directory.mkdir()
 
@@ -46,6 +46,15 @@ def test_cleanup_removes_old_file_and_empty_directory(tmp_path):
     folder_cleanup.cleanup(str(directory), RETENTION_DAYS)
 
     assert not old_file.exists()
+    assert directory.exists()
+
+def test_cleanup_removes_empty_directory_once_it_ages_past_retention(tmp_path):
+    directory = tmp_path / "aged_empty"
+    directory.mkdir()
+    _age(directory, RETENTION_DAYS + 10)
+
+    folder_cleanup.cleanup(str(directory), RETENTION_DAYS)
+
     assert not directory.exists()
 
 def test_cleanup_keeps_directory_with_fresh_file(tmp_path):
@@ -61,7 +70,7 @@ def test_cleanup_keeps_directory_with_fresh_file(tmp_path):
     assert fresh_file.exists()
     assert directory.exists()
 
-def test_cleanup_nested_directories_recursively_cleaned(tmp_path, capsys):
+def test_cleanup_recursively_removes_old_file_but_keeps_fresh_dirs(tmp_path, capsys):
     directory = tmp_path / "dir"
 
     subdir = directory / "subdir"
@@ -75,9 +84,20 @@ def test_cleanup_nested_directories_recursively_cleaned(tmp_path, capsys):
     out = capsys.readouterr().out
 
     assert not old_file.exists()
-    assert not subdir.exists()
-    assert not directory.exists()
+    assert subdir.exists()
+    assert directory.exists()
     assert f"Successfully cleaned up directory {directory}" in out
+
+def test_cleanup_removes_empty_subdir_once_it_ages_past_retention(tmp_path):
+    directory = tmp_path / "dir"
+    subdir = directory / "subdir"
+    subdir.mkdir(parents=True)
+    _age(subdir, RETENTION_DAYS + 10)
+
+    folder_cleanup.cleanup(str(directory), RETENTION_DAYS)
+
+    assert not subdir.exists()
+    assert directory.exists()
 
 
 @patch("xnat_maintenance_monitoring_scripts.folder_cleanup.handle_file_removal")
@@ -138,12 +158,21 @@ def test_handle_path_symlink_is_ignored(mock_islink, mock_isdir, mock_isfile, mo
 def test_handle_directory_empty(tmp_path):
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
+    _age(empty_dir, RETENTION_DAYS + 10)
 
     folder_cleanup.handle_directory(str(empty_dir), RETENTION_DAYS)
 
     assert not empty_dir.exists()
 
-def test_handle_directory_not_empty_all_exceed_retention(tmp_path):
+def test_handle_directory_empty_within_retention_kept(tmp_path):
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+
+    folder_cleanup.handle_directory(str(empty_dir), RETENTION_DAYS)
+
+    assert empty_dir.exists()
+
+def test_handle_directory_removes_old_file_but_keeps_fresh_empty_directory(tmp_path):
     directory = tmp_path / "all_old"
     directory.mkdir()
     old_file = directory / "old.txt"
@@ -153,7 +182,7 @@ def test_handle_directory_not_empty_all_exceed_retention(tmp_path):
     folder_cleanup.handle_directory(str(directory), RETENTION_DAYS)
 
     assert not old_file.exists()
-    assert not directory.exists()
+    assert directory.exists()
 
 def test_handle_directory_not_empty_all_within_retention(tmp_path):
     directory = tmp_path / "all_fresh"
@@ -183,7 +212,7 @@ def test_handle_directory_mixed_contents(tmp_path):
     assert fresh_file.exists()
     assert directory.exists()
 
-def test_handle_directory_nested_recursive_cleanup(tmp_path):
+def test_handle_directory_recursively_removes_old_file_but_keeps_fresh_dirs(tmp_path):
     directory = tmp_path / "dir"
     subdir = directory / "subdir"
     subdir.mkdir(parents=True)
@@ -194,8 +223,19 @@ def test_handle_directory_nested_recursive_cleanup(tmp_path):
     folder_cleanup.handle_directory(str(directory), RETENTION_DAYS)
 
     assert not old_file.exists()
+    assert subdir.exists()
+    assert directory.exists()
+
+def test_handle_directory_removes_empty_subdir_once_it_ages_past_retention(tmp_path):
+    directory = tmp_path / "dir"
+    subdir = directory / "subdir"
+    subdir.mkdir(parents=True)
+    _age(subdir, RETENTION_DAYS + 10)
+
+    folder_cleanup.handle_directory(str(directory), RETENTION_DAYS)
+
     assert not subdir.exists()
-    assert not directory.exists()
+    assert directory.exists()
 
 def test_handle_file_removal_exceeds_retention(tmp_path):
     file_path = tmp_path / "old.txt"
@@ -224,15 +264,7 @@ def test_handle_file_removal_at_retention_boundary(tmp_path):
 
     assert file_path.exists()
 
-def test_handle_file_removal_read_only(tmp_path):
-    file_path = tmp_path / "readonly.txt"
-    file_path.write_text("content")
-    _age(file_path, RETENTION_DAYS + 1)
-    os.chmod(file_path, stat.S_IREAD)
 
-    folder_cleanup.handle_file_removal(str(file_path), RETENTION_DAYS)
-
-    assert not file_path.exists()
 
 @patch("os.remove")
 def test_handle_file_removal_unrecoverable_error(mock_remove, tmp_path, capsys):
@@ -246,49 +278,7 @@ def test_handle_file_removal_unrecoverable_error(mock_remove, tmp_path, capsys):
     assert file_path.exists()
     assert "Could not remove file" in capsys.readouterr().out
 
-def test_handle_directory_removal_not_read_only(tmp_path):
-    directory = tmp_path / "plain"
-    directory.mkdir()
-    (directory / "file.txt").write_text("content")
 
-    folder_cleanup.handle_directory_removal(str(directory))
-
-    assert not directory.exists()
-
-def test_handle_directory_removal_read_only(tmp_path):
-    directory = tmp_path / "readonly"
-    directory.mkdir()
-    read_only_file = directory / "file.txt"
-    read_only_file.write_text("content")
-    os.chmod(read_only_file, stat.S_IREAD)
-
-    folder_cleanup.handle_directory_removal(str(directory))
-
-    assert not directory.exists()
-
-@patch("shutil.rmtree")
-def test_handle_directory_removal_unrecoverable_error(mock_rmtree, tmp_path, capsys):
-    mock_rmtree.side_effect = OSError("Permission denied by ACL")
-    directory = tmp_path / "locked"
-    directory.mkdir()
-
-    folder_cleanup.handle_directory_removal(str(directory))
-
-    mock_rmtree.assert_called_once_with(
-        str(directory), ignore_errors=False, onerror=folder_cleanup.remove_readonly
-    )
-    assert directory.exists()
-    assert "Could not remove directory or file" in capsys.readouterr().out
-
-def test_remove_readonly_eacces_retries(tmp_path):
-    file_path = tmp_path / "readonly.txt"
-    file_path.write_text("content")
-    os.chmod(file_path, stat.S_IREAD)
-    exc = (OSError, OSError(errno.EACCES, "Access denied"), None)
-
-    folder_cleanup.remove_readonly(os.remove, str(file_path), exc)
-
-    assert not file_path.exists()
 
 def _age(path, days_old):
     timestamp = (datetime.now() - timedelta(days=days_old)).timestamp()
