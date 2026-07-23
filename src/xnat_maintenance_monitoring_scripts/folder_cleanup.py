@@ -1,6 +1,5 @@
 import argparse
-import errno, os, stat, sys
-import shutil
+import os
 from datetime import datetime
 
 def cleanup(dir_path, retention_days):
@@ -21,7 +20,7 @@ def cleanup(dir_path, retention_days):
         handle_path(entry_path, retention_days)
 
     if not os.listdir(dir_path):
-        handle_directory_removal(dir_path)
+        handle_directory_removal(dir_path, retention_days)
 
     print(f"Successfully cleaned up directory {dir_path} - with retention days: {retention_days}")
 
@@ -37,63 +36,63 @@ def handle_path(path, retention_days):
         handle_file_removal(path, retention_days)
 
 
-def handle_directory(directory, retention_days):
-    contents = os.listdir(directory)
-    if not contents:
-        handle_directory_removal(directory)
+def handle_directory(dir_path, retention_days):
+    if is_dir_empty(dir_path):
+        handle_directory_removal(dir_path, retention_days)
         return
 
-    for entry in contents:
-        entry_path = os.path.join(directory, entry)
+    for entry in os.listdir(dir_path):
+        entry_path = os.path.join(dir_path, entry)
         handle_path(entry_path, retention_days)
 
-    if not os.listdir(directory):
-        handle_directory_removal(directory)
+    if is_dir_empty(dir_path):
+        handle_directory_removal(dir_path, retention_days)
+
 
 def handle_file_removal(file_path, retention_days):
-    last_modified = datetime.fromtimestamp(os.path.getmtime(file_path))
-    last_modified_days = (datetime.now() - last_modified).days
-    if last_modified_days <= retention_days:
+    after_retention, last_modified_days = is_after_retention_period(file_path, retention_days)
+
+    if not after_retention:
         print(f"File unchanged {file_path} - last modified {last_modified_days} days")
         return
 
     try:
         os.remove(file_path)
         print(f"Removed file {file_path} - last modified {last_modified_days} days")
+    except OSError as e:
+        print(f"Could not remove file {file_path}: {e}")
 
-    except OSError:
-        try:
-            remove_readonly(os.remove, file_path, sys.exc_info())
-            print(f"Removed readonly file {file_path} - last modified {last_modified_days} days")
 
-        except OSError as e:
-            print(f"Could not remove file {file_path}: {e}")
-            return
+def handle_directory_removal(dir_path, retention_days):
+    after_retention, last_modified_days = is_after_retention_period(dir_path, retention_days)
 
-def handle_directory_removal(path):
-    if not os.path.isdir(path):
-        print(f"Path is not a directory: {path}")
+    if not after_retention:
+        print(f"Directory unchanged {dir_path} - last modified {last_modified_days} days")
         return
 
     try:
-        shutil.rmtree(path, ignore_errors=False, onerror=remove_readonly)
-        print(f"Removed directory {path}")
+        os.rmdir(dir_path)
+        print(f"Removed directory {dir_path} - last modified {last_modified_days} days")
     except OSError as e:
-        print(f"Could not remove directory or file {path}: {e}")
+        print(f"Could not remove directory or file {dir_path}: {e}")
 
-def remove_readonly(func, path, exc):
-    # onerror callback for shutil.rmtree: whenever a delete fails partway through the tree, instead of aborting the whole rmtree.
-    excvalue = exc[1]
-    if func in (os.rmdir, os.remove, os.unlink) and excvalue.errno == errno.EACCES:
-      # Windows marks some OneDrive files read-only, which makes rmdir/remove raise
-      # "access denied" (EACCES). Clearing the attribute and retrying fixes that case.
-      os.chmod(path, stat.S_IRWXU| stat.S_IRWXG| stat.S_IRWXO) # 0777
-      func(path)
+
+def is_after_retention_period(path, retention_days):
+    last_modified = datetime.fromtimestamp(os.path.getmtime(path))
+    last_modified_days = (datetime.now() - last_modified).days
+
+    if last_modified_days > retention_days:
+        return True, last_modified_days
     else:
-      # Not a read-only issue (e.g. an ACL delete-deny) - re-raise the original exception.
-      # Works because rmtree calls onerror() from inside its own except block, so the
-      # exception context is still live for a bare `raise` to pick up.
-        raise
+        return False, last_modified_days
+
+
+def is_dir_empty(dir_path):
+    if os.listdir(dir_path):
+        return False
+    else:
+        return True
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Clean up old files in target folder (e.g: in XNAT cache, temp and deleted folders)')
