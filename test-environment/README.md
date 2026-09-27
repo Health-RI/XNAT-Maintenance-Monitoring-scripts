@@ -80,6 +80,7 @@ no API-only way to get started. It also mounts the docker socket, to create the
 data directories in the XNAT container and restart it. Throwaway local
 instances only.
 
-Two findings from running `users_per_project.py` against this environment are
-recorded in `../SCRATCHPAD.md`; the disabled-user one means TESTPROJ02 and
-TESTPROJ03 do not come out of the report the way the table above suggests.
+Running `users_per_project.py` against this environment surfaced two issues in
+that script: disabled accounts are left out of the report entirely, so
+TESTPROJ02 and TESTPROJ03 do not come out the way the table above suggests, and
+`--project` matches the display name rather than the project ID.
