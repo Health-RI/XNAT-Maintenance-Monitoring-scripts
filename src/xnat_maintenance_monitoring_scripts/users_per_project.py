@@ -1,8 +1,14 @@
-import xnat
-import pandas as pd
 import argparse
 import getpass
+import re
 from datetime import datetime
+
+import pandas as pd
+import xnat
+
+# Logins outside this character set are spam accounts; querying them makes XNAT
+# return a 500, so they are skipped before the group lookup.
+SAFE_LOGIN = re.compile(r"^[A-Za-z0-9._@+-]+$")
 
 # XNAT names its project groups "{PROJECT_ID}_{level}".
 ACCESS_LEVELS = {
@@ -30,21 +36,49 @@ def split_group_id(group_id, project_ids):
                 return project_id, level
     return None, None
 
-def get_project_memberships(session, project_ids):
-    """Return {project_id: {login: access_level}} for every account.
+def get_project_memberships(session, project_ids, logins):
+    """Return (memberships, skipped, failed) for the given logins.
 
-    Built from each user's group membership rather than from the per-project
-    user listing, because that listing leaves out disabled accounts.
+    memberships is {project_id: {login: access_level}}. It is built from each
+    user's group membership rather than from the per-project user listing,
+    because that listing leaves out disabled accounts.
+
+    skipped holds logins that were not queried because they contain unexpected
+    characters; failed holds {login: error} for lookups that raised.
     """
     memberships = {project_id: {} for project_id in project_ids}
+    skipped = []
+    failed = {}
 
-    for login in get_user_profiles(session):
-        for group_id in session.get_json(f"/xapi/users/{login}/groups"):
+    for login in logins:
+        if not SAFE_LOGIN.match(login):
+            skipped.append(login)
+            continue
+
+        try:
+            group_ids = session.get_json(f"/xapi/users/{login}/groups")
+        except Exception as error:  # noqa: BLE001 - one bad account must not stop the run
+            failed[login] = error
+            continue
+
+        for group_id in group_ids:
             project_id, level = split_group_id(group_id, project_ids)
             if project_id is not None:
                 memberships[project_id][login] = level
 
-    return memberships
+    return memberships, skipped, failed
+
+def report_problem_logins(skipped, failed):
+    """Print the logins that were skipped or that failed their group lookup."""
+    if skipped:
+        print(f"\nSkipped {len(skipped)} login(s) with unexpected characters:")
+        for login in skipped:
+            print(f"  {login!r}")
+
+    if failed:
+        print(f"\nFailed to look up groups for {len(failed)} login(s):")
+        for login, error in failed.items():
+            print(f"  {login!r}: {error}")
 
 def main(xnat_url, username, password, selected_project=None):
     dictionary_list = []
@@ -56,7 +90,7 @@ def main(xnat_url, username, password, selected_project=None):
 
         projects = {project.id: project for project in session.projects.values()}
         profiles = get_user_profiles(session)
-        memberships = get_project_memberships(session, set(projects))
+        memberships, skipped, failed = get_project_memberships(session, set(projects), profiles)
 
         for project_id, project in projects.items():
             if selected_project and selected_project not in (project.name, project_id):
@@ -89,6 +123,8 @@ def main(xnat_url, username, password, selected_project=None):
     df = pd.DataFrame(dictionary_list)
     df.to_csv(csv_path, index=False)
     print(f"Output written to {csv_path}.")
+
+    report_problem_logins(skipped, failed)
 
 if __name__ == "__main__":
     # Set up command line argument parsing
