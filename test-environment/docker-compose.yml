@@ -1,6 +1,17 @@
+# Test environment for the maintenance & monitoring scripts.
+#
+# XNAT plus its bootstrap (`xnat-setup`) is reusable; per-script services load
+# the fixtures that test needs on top of it.
+#
+#   docker compose up users_per_project
+#
+# brings up XNAT, finishes its first-run setup and loads the fixtures. It exits
+# when the environment is ready; the script under test is then run from the
+# host against http://localhost:8080.
+
 services:
   nginx:
-    image: nginx
+    image: nginx:alpine
     container_name: xnat-test-nginx
     restart: always
     ports:
@@ -15,15 +26,21 @@ services:
     container_name: xnat-test-db
     restart: always
     environment:
-      - POSTGRES_USER=xnat
-      - POSTGRES_PASSWORD=xnat-super-secret-password
-      - PGDATA=/var/lib/postgresql/data
+      POSTGRES_USER: xnat
+      POSTGRES_PASSWORD: xnat-super-secret-password
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - "./data/db:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xnat -d xnat"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   xnat:
     image: registry.gitlab.com/radiology/infrastructure/docker-images/xnat:1.9.3.1
     container_name: xnat-test
+    platform: linux/amd64
     restart: unless-stopped
     environment:
       XNAT_DATA: /xnatdata/
@@ -36,4 +53,48 @@ services:
     volumes:
       - "./data/xnat:/xnatdata/"
     depends_on:
-      - xnat-db
+      xnat-db:
+        condition: service_healthy
+
+  # Reusable across tests: finishes XNAT's first-run setup and exits once the
+  # REST API answers. A test service waits for it with
+  # `condition: service_completed_successfully`.
+  xnat-setup:
+    build: ./setup
+    container_name: xnat-test-setup
+    environment:
+      XNAT_URL: http://nginx:8080
+      XNAT_CONTAINER: xnat-test
+      DB_HOST: xnat-db
+      DB_NAME: xnat
+      DB_USER: xnat
+      DB_PASSWORD: xnat-super-secret-password
+      ADMIN_PASSWORD: admin
+      SITE_URL: http://localhost:8080
+    volumes:
+      # Needed to create the data directories in, and restart, the XNAT
+      # container once its preferences have been written.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      xnat-db:
+        condition: service_healthy
+      nginx:
+        condition: service_started
+
+  # Test-specific: the environment for users_per_project.py. Brings up a
+  # bootstrapped XNAT and loads fixtures.yaml into it, then exits.
+  users_per_project:
+    build: ./setup
+    container_name: xnat-test-users-per-project
+    command: ["python", "populate.py"]
+    environment:
+      XNAT_URL: http://nginx:8080
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      USER_PASSWORD: TestPassword123!
+      FIXTURES: /fixtures/fixtures.yaml
+    volumes:
+      - "./fixtures.yaml:/fixtures/fixtures.yaml:ro"
+    depends_on:
+      xnat-setup:
+        condition: service_completed_successfully

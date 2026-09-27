@@ -4,12 +4,14 @@ Reads a declarative fixture file (fixtures.yaml) and creates the described
 users and projects on the target XNAT, assigning per-project access levels
 and toggling the enabled/verified flags. Safe to re-run: existing users and
 projects are reused rather than recreated.
+
+Runs as the `populate` compose service; configured through environment
+variables so it needs no interactive input.
 """
 
 from __future__ import annotations
 
-import argparse
-import getpass
+import os
 import sys
 from typing import Any
 from xml.sax.saxutils import escape
@@ -162,21 +164,14 @@ def main(xnat_url: str, username: str, password: str, fixtures_path: str, user_p
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Populate an XNAT test instance with projects and users")
-    parser.add_argument("--xnat_url", default="http://localhost:8080", help="URL of the XNAT test instance")
-    parser.add_argument("--fixtures", default="fixtures.yaml", help="Path to the fixture file")
-    parser.add_argument("--username", default="admin", help="Admin username on the test instance")
-    parser.add_argument(
-        "--user_password",
-        default="TestPassword123!",
-        help="Password assigned to every created test user",
-    )
-    args = parser.parse_args()
-
-    admin_password = getpass.getpass(f"Password for {args.username}: ")
-
     try:
-        main(args.xnat_url, args.username, admin_password, args.fixtures, args.user_password)
-    except Exception as error:  # noqa: BLE001 - surface a readable message on the CLI
+        main(
+            os.environ["XNAT_URL"],
+            os.environ["ADMIN_USERNAME"],
+            os.environ["ADMIN_PASSWORD"],
+            os.environ["FIXTURES"],
+            os.environ["USER_PASSWORD"],
+        )
+    except Exception as error:  # noqa: BLE001 - surface a readable message in the compose log
         print(f"Error: {error}", file=sys.stderr)
         sys.exit(1)
