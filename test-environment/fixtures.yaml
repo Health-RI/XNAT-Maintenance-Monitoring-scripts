@@ -1,0 +1,112 @@
+# Declarative description of the test environment.
+#
+# Users get a per-project access level (owner / member / collaborator).
+# `enabled: false` produces a disabled account, `verified: false` an
+# unverified one -- both still show up in the project user listing, which
+# is exactly the edge case users_per_project needs to cope with.
+
+users:
+  - login: a.owner
+    first_name: Alice
+    last_name: Owner
+    email: alice.owner@example.org
+  - login: b.member
+    first_name: Bob
+    last_name: Member
+    email: bob.member@example.org
+  - login: c.collab
+    first_name: Carol
+    last_name: Collaborator
+    email: carol.collab@example.org
+  - login: d.disabled
+    first_name: Dave
+    last_name: Disabled
+    email: dave.disabled@example.org
+    enabled: false
+  - login: e.unverified
+    first_name: Eve
+    last_name: Unverified
+    email: eve.unverified@example.org
+    verified: false
+  - login: f.multi
+    first_name: Frank
+    last_name: Multiproject
+    email: frank.multi@example.org
+  - login: g.admin
+    first_name: Grace
+    last_name: Admin
+    email: grace.admin@example.org
+    admin: true
+  - login: h.disabled.owner
+    first_name: Heidi
+    last_name: DisabledOwner
+    email: heidi.disabled@example.org
+    enabled: false
+  - login: i.longname
+    first_name: Ivan
+    last_name: van der Berg-Ostrowski
+    email: ivan@example.org
+  - login: j.accented
+    first_name: José
+    last_name: Ångström
+    email: jose.angstrom@example.org
+
+projects:
+  # Ordinary project: one of each access level.
+  - id: TESTPROJ01
+    name: Cardiac Imaging Study
+    description: Baseline project with one owner, one member, one collaborator.
+    pi_firstname: Alice
+    pi_lastname: Owner
+    pi_title: Prof.
+    pi_institution: Example University Medical Center
+    members:
+      a.owner: owner
+      b.member: member
+      c.collab: collaborator
+
+  # Contains disabled and unverified accounts.
+  - id: TESTPROJ02
+    name: Neuro Longitudinal
+    description: Contains a disabled and an unverified account.
+    pi_firstname: Grace
+    pi_lastname: Admin
+    pi_title: Dr.
+    pi_institution: Example Research Institute
+    members:
+      g.admin: owner
+      d.disabled: member
+      e.unverified: collaborator
+      f.multi: member
+
+  # Owner account itself is disabled -- orphaned-ownership edge case.
+  - id: TESTPROJ03
+    name: Oncology Pilot
+    description: The only owner of this project is a disabled account.
+    pi_firstname: Heidi
+    pi_lastname: DisabledOwner
+    pi_title: Dr.
+    pi_institution: Example Cancer Center
+    members:
+      h.disabled.owner: owner
+      b.member: collaborator
+
+  # Odd name data: a long multi-part surname and non-ASCII characters.
+  - id: TESTPROJ04
+    name: Musculoskeletal Cohort
+    description: Users with a multi-part surname and non-ASCII characters.
+    pi_firstname: José
+    pi_lastname: Ångström
+    pi_title: Prof. dr.
+    pi_institution: Universität Beispiel
+    members:
+      j.accented: owner
+      i.longname: member
+      f.multi: collaborator
+
+  # No PI metadata and only a single user.
+  - id: TESTPROJ05
+    name: Empty Study
+    description: Minimal project, no PI metadata, single owner.
+    members:
+      a.owner: owner
