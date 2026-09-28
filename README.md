@@ -132,34 +132,6 @@ docker run --rm -it \
   --project_root /prearchive
 ```
 
-#### Scheduled (cron) usage
-
-Any script in this repository can be run on a recurring schedule *inside* the container, instead of
-once per `docker run`. Start the container with `CRON_SCHEDULE` and `CRON_SCRIPT` set (and no
-script name/args on the command line) and it will register a cron job and keep running:
-
-```bash
-docker build -t xnat-scripts .
-docker run -d --name xnat-prearchive-cron \
-  -v /path/to/xnat/prearchive:/prearchive:ro \
-  -e CRON_SCHEDULE="0 3 * * *" \
-  -e CRON_SCRIPT="prearchive_cleanup" \
-  -e CRON_ARGS="--xnat_url https://xnat.health-ri.nl --project unassigned --retention_days 90 --project_root /prearchive" \
-  -e XNAT_USERNAME="svc_cleanup" \
-  -e XNAT_PASSWORD="********" \
-  xnat-scripts
-
-docker logs -f xnat-prearchive-cron
-```
-* `CRON_SCHEDULE` uses standard 5-field cron syntax (e.g. `"0 3 * * *"` = daily at 03:00).
-* `CRON_SCRIPT` is any script name under `src/xnat_maintenance_monitoring_scripts/`, with or
-  without `.py`.
-* `CRON_ARGS` is the full CLI argument string for that script.
-* `XNAT_USERNAME` / `XNAT_PASSWORD` let scripts that normally prompt interactively (like
-  `prearchive_cleanup.py`) run unattended; they fall back to the interactive prompt when unset.
-* Running `docker run ... xnat-scripts <script_name> [args]` (no `CRON_*` variables) continues to
-  run the script once and exit, exactly as before — cron mode is purely additive.
-
 ### folder_cleanup.py
 
 Removes files older than a configurable retention period from a given local directory (and any
