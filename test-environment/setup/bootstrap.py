@@ -44,6 +44,11 @@ PREFERENCES = {
     "adminEmail": "admin@example.org",
 }
 
+# Work factor for the admin password hash. The cost is stored in the hash
+# itself, so XNAT re-derives it when verifying; 12 is the current baseline for
+# bcrypt and costs a fraction of a second here.
+BCRYPT_ROUNDS = 12
+
 
 def connect(host: str, name: str, user: str, password: str):
     return pg8000.dbapi.connect(host=host, database=name, user=user, password=password)
@@ -67,7 +72,8 @@ def set_preferences(connection, preferences: dict[str, str]) -> None:
 
 def set_admin_password(connection, password: str) -> None:
     # XNAT stores passwords as bcrypt with the 2a prefix.
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(10, prefix=b"2a")).decode()
+    salt = bcrypt.gensalt(BCRYPT_ROUNDS, prefix=b"2a")
+    hashed = bcrypt.hashpw(password.encode(), salt).decode()
     cursor = connection.cursor()
     cursor.execute(
         "update xdat_user set primary_password = %s, enabled = 1, verified = 1 where login = 'admin';",
