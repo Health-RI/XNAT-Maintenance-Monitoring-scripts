@@ -57,6 +57,11 @@ python src/xnat_maintenance_monitoring_scripts/users_per_project.py --xnat_url h
 ```
 
 You need to have 'Owner' or 'Site admin' priviliges to run this script on a project.
+The 'enabled' and 'verified' columns report the state of each account, so
+disabled and unverified users can be spotted in an access review.
+
+`--project` accepts either the project ID or its display name.
+
 This script returns a CSV file "./{today}_XNAT_users_per_project.csv", with the columns:
 * project
 * user_login_name
@@ -65,6 +70,8 @@ This script returns a CSV file "./{today}_XNAT_users_per_project.csv", with the 
 * user_email
 * access_level
 * group
+* enabled
+* verified
 * pi_firstname
 * pi_lastname
 * pi_title
