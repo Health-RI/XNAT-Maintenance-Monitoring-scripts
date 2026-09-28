@@ -142,7 +142,8 @@ def main(xnat_url: str, username: str, password: str, fixtures_path: str, user_p
         for user_spec in fixtures.get("users", []):
             try:
                 create_user(session, user_spec, user_password, existing)
-            except Exception as error:  # noqa: BLE001 - keep going, report at the end
+            # Broad on purpose: one bad fixture should not stop the rest.
+            except Exception as error:  # NOSONAR
                 failures.append(f"user {user_spec['login']}: {error}")
                 print(f"  FAILED user {user_spec['login']}: {error}")
 
@@ -150,7 +151,8 @@ def main(xnat_url: str, username: str, password: str, fixtures_path: str, user_p
         for project_spec in fixtures.get("projects", []):
             try:
                 create_project(session, project_spec)
-            except Exception as error:  # noqa: BLE001 - keep going, report at the end
+            # Broad on purpose: one bad fixture should not stop the rest.
+            except Exception as error:  # NOSONAR
                 failures.append(f"project {project_spec['id']}: {error}")
                 print(f"  FAILED project {project_spec['id']}: {error}")
 
@@ -172,6 +174,7 @@ if __name__ == "__main__":
             os.environ["FIXTURES"],
             os.environ["USER_PASSWORD"],
         )
-    except Exception as error:  # noqa: BLE001 - surface a readable message in the compose log
+    # Broad on purpose: surface a readable message in the compose log.
+    except Exception as error:  # NOSONAR
         print(f"Error: {error}", file=sys.stderr)
         sys.exit(1)
