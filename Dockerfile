@@ -18,6 +18,12 @@ COPY entrypoint.py ./
 # Change ownership of the app directory to the non-root user
 RUN chown -R appuser:appgroup /app
 
+# Prepare the crontab spool directory so the non-root user can schedule its own cron jobs.
+# /var/spool/cron/crontabs is a symlink to /etc/crontabs in this base image; chown the real
+# target too since `chown -R` does not follow symlinks out of the tree it's walking.
+RUN mkdir -p /var/spool/cron/crontabs && \
+    chown -R appuser:appgroup /var/spool/cron /etc/crontabs
+
 # Switch to the non-root user
 USER appuser
 
