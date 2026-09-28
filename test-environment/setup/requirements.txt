@@ -1,0 +1,6 @@
+xnat==0.8.1
+PyYAML==6.0.2
+bcrypt==4.2.1
+# Pure Python, so it needs no compiler on alpine.
+pg8000==1.31.2
+requests==2.32.3

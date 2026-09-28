@@ -50,6 +50,11 @@ dependencies = ["pytest", "pytest-cov"]
 [[tool.hatch.envs.test.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12"]
 
+[tool.pytest.ini_options]
+# The test environment is a standalone docker setup, not part of the test suite.
+testpaths = ["tests"]
+norecursedirs = ["test-environment"]
+
 [tool.hatch.envs.test.scripts]
 test = "pytest {args:tests}"
 test-cov = "coverage run -m pytest {args:tests}"
@@ -60,6 +65,7 @@ cov = ["test-cov", "cov-report"]
 source_pkgs = ["xnat_maintenance_monitoring_scripts"]
 branch = true
 parallel = true
+omit = ["test-environment/*"]
 
 [tool.coverage.paths]
 tests = ["tests"]
