@@ -31,8 +31,10 @@ def main():
         print(f"Error: Script '{script_name}' not found.")
         sys.exit(1)
     
-    # Change to the data directory (mounted volume)
-    os.chdir("/data")
+    # Change to the data directory (mounted volume), if one was mounted. Scripts such as
+    # prearchive_cleanup don't need /data and are run with only their own volumes mounted.
+    if os.path.isdir("/data"):
+        os.chdir("/data")
     
     # Execute the script
     try:

@@ -95,6 +95,55 @@ This script returns a CSV file "./{today}_XNAT_disk_usage.csv", with the columns
 * pi_email
 * pi_institution
 
+### prearchive_cleanup.py
+
+Removes XNAT prearchive uploads older than a configurable retention period, and verifies that each
+deleted session is actually gone from disk. Uploads with no associated project ("unassigned") are
+easy to forget about and can otherwise take up storage indefinitely.
+
+Run in the terminal with:
+```bash
+python src/xnat_maintenance_monitoring_scripts/prearchive_cleanup.py \
+  --xnat_url https://xnat.health-ri.nl \
+  --project unassigned \
+  --retention_days 90 \
+  --project_root /data/xnat/prearchive
+```
+* `--project` accepts a specific project ID, `unassigned` (default) for uploads not associated with
+  any project, or `all` to process every project including `unassigned`.
+* `--retention_days` (default 90) is how old (in days, based on upload timestamp) a prearchive
+  session must be before it's removed.
+* `--project_root` must be a filesystem path to the XNAT prearchive directory, reachable from
+  wherever the script runs, so it can confirm the session folder was actually removed from disk
+  after the API delete.
+
+`run.sh` alone isn't enough for this script, because it only mounts the current directory as
+`/data` — `--project_root` needs the *real* prearchive directory. Run it via `docker run` directly
+instead, mounting the prearchive directory read-only (the script only reads it to verify deletion;
+the delete itself happens server-side via the XNAT API):
+```bash
+docker build -t xnat-scripts .
+docker run --rm -it \
+  -v /path/to/xnat/prearchive:/prearchive:ro \
+  xnat-scripts prearchive_cleanup \
+  --xnat_url https://xnat.health-ri.nl \
+  --project unassigned \
+  --retention_days 90 \
+  --project_root /prearchive
+```
+The script prompts for your XNAT username and password, which requires `-it`. To run it
+non-interactively (e.g. from cron), set `XNAT_USERNAME` and `XNAT_PASSWORD` instead and pass them
+into the container with `-e XNAT_USERNAME -e XNAT_PASSWORD` (then `-it` can be dropped).
+
+### folder_cleanup.py
+
+Removes files older than a configurable retention period from a given local directory (and any
+now-empty parent directories left behind), independent of XNAT.
+
+```bash
+python src/xnat_maintenance_monitoring_scripts/folder_cleanup.py --dir_path /path/to/folder --retention_days 90
+```
+
 ## Contributing New Scripts
 
 To add a new Python script to this repository:
