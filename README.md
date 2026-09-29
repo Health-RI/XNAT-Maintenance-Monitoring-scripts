@@ -131,6 +131,9 @@ docker run --rm -it \
   --retention_days 90 \
   --project_root /prearchive
 ```
+The script prompts for your XNAT username and password, which requires `-it`. To run it
+non-interactively (e.g. from cron), set `XNAT_USERNAME` and `XNAT_PASSWORD` instead and pass them
+into the container with `-e XNAT_USERNAME -e XNAT_PASSWORD` (then `-it` can be dropped).
 
 ### folder_cleanup.py
 
