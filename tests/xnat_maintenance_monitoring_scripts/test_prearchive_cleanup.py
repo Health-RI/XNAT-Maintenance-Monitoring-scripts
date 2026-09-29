@@ -1,6 +1,11 @@
+import argparse
 import os
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
+
+import pytest
+import requests
+from xnat.exceptions import XNATResponseError
 
 from xnat_maintenance_monitoring_scripts import prearchive_cleanup
 
@@ -28,11 +33,38 @@ def test_delete_prearchive_session_via_api_success():
 
 def test_delete_prearchive_session_via_api_failure():
     prearchive_session = MagicMock()
-    prearchive_session.delete.side_effect = Exception("boom")
+    prearchive_session.delete.side_effect = XNATResponseError("boom", MagicMock())
 
     error = prearchive_cleanup.delete_prearchive_session_via_api(prearchive_session)
 
     assert error == "boom"
+
+
+def test_delete_prearchive_session_via_api_connection_failure():
+    prearchive_session = MagicMock()
+    prearchive_session.delete.side_effect = requests.exceptions.ConnectionError("unreachable")
+
+    error = prearchive_cleanup.delete_prearchive_session_via_api(prearchive_session)
+
+    assert error == "unreachable"
+
+
+def test_delete_prearchive_session_via_api_unexpected_error_propagates():
+    prearchive_session = MagicMock()
+    prearchive_session.delete.side_effect = TypeError("bug")
+
+    with pytest.raises(TypeError):
+        prearchive_cleanup.delete_prearchive_session_via_api(prearchive_session)
+
+
+def test_non_negative_int_accepts_zero_and_positive():
+    assert prearchive_cleanup.non_negative_int("0") == 0
+    assert prearchive_cleanup.non_negative_int("1") == 1
+
+
+def test_non_negative_int_rejects_negative():
+    with pytest.raises(argparse.ArgumentTypeError):
+        prearchive_cleanup.non_negative_int("-1")
 
 
 def test_is_disk_path_deleted_when_present(tmp_path):

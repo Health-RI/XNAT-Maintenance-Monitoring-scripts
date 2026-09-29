@@ -4,7 +4,9 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import requests
 import xnat
+from xnat.exceptions import XNATError
 
 # The on-disk prearchive folder layout is <prearchive_root>/<project>/<timestamp>/<leaf-folder>.
 # folder_name is a real xnatpy PrearchiveSession property (returns data["folderName"]), confirmed
@@ -68,7 +70,7 @@ def delete_prearchive_session_via_api(prearchive_session):
         prearchive_session.delete(asynchronous=False)
         print(f"Session deleted via API: {prearchive_session.label}")
         return None
-    except Exception as e:
+    except (XNATError, requests.exceptions.RequestException) as e:
         print(f"Session deletion failed: {prearchive_session.label} - error: {e}")
         return str(e)
 
@@ -93,6 +95,12 @@ def delete_prearchive_session(prearchive_session, prearchive_root):
 def is_disk_path_deleted(disk_path):
     return not disk_path.exists()
 
+def non_negative_int(value):
+    number = int(value)
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"must be a non-negative integer, got {value}")
+    return number
+
 def resolve_credentials():
     username = os.environ.get("XNAT_USERNAME") or input("Enter your XNAT username: ")
     password = os.environ.get("XNAT_PASSWORD") or getpass.getpass("Enter your XNAT password: ")
@@ -107,7 +115,7 @@ if __name__ == "__main__":
                         help="Project to filter prearchive sessions by. Use a specific project ID to target only "
                              "that project, 'unassigned' to target uploads that were not associated with a project "
                              "(default), or 'all' to process every project including 'unassigned'.")
-    parser.add_argument("--retention_days", type=int, default=90,
+    parser.add_argument("--retention_days", type=non_negative_int, default=90,
                         help="Retention period in days; prearchive sessions with an upload timestamp older than "
                              "this will be removed (default: 90)")
     parser.add_argument("--project_root", type=str, required=True,
