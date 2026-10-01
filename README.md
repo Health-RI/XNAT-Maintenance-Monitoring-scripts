@@ -57,7 +57,8 @@ python src/xnat_maintenance_monitoring_scripts/users_per_project.py --xnat_url h
 ```
 
 You need to have 'Owner' or 'Site admin' priviliges to run this script on a project.
-This script returns a CSV file "./{today}_XNAT_users_per_project.csv", with the columns:
+This script returns a CSV file "./{today}_XNAT_users_per_project.csv" and an Excel file "./{today}_XNAT_users_per_project.xlsx".
+The Excel file has the total overview on the first sheet, followed by one sheet per `pi_lastname`. Both contain the columns:
 * project
 * user_login_name
 * user_first_name
